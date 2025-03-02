@@ -27,7 +27,7 @@ app.get("/api-request", async (req, res) => {
     // Launch browser with appropriate options for both local and DO environments
     browser = await puppeteer.launch({
       headless: "new",
-      executablePath: "/usr/bin/chromium-browser",
+      // executablePath: "/usr/bin/chromium-browser",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -46,7 +46,7 @@ app.get("/api-request", async (req, res) => {
 
     // Navigate to the target API URL
     console.log(`Navigating to ${process.env.TARGET_API_URL}...`);
-    await page.goto(process.env.TARGET_API_URL, { waitUntil: "networkidle2" });
+    await page.goto("https://www.google.com", { waitUntil: "networkidle2" });
 
     // Example: Extract data from the page
     const data = await page.evaluate(() => {
