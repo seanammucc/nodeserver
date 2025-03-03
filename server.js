@@ -27,7 +27,7 @@ app.get("/api-request", async (req, res) => {
     // Launch browser with appropriate options for both local and DO environments
     browser = await puppeteer.launch({
       headless: "new",
-      // executablePath: "/usr/bin/chromium-browser",
+      executablePath: "/usr/bin/chromium-browser",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
