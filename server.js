@@ -63,9 +63,11 @@ app.get("/api-request", async (req, res) => {
           headers: headers,
           method: "GET",
         });
+        console.log(response);
 
         if (response.ok) {
           const data = await response.json();
+          console.log(data);
           request.respond({
             status: 200,
             contentType: "application/json",
