@@ -27,7 +27,7 @@ app.get("/api-request", async (req, res) => {
     // Launch browser with appropriate options for both local and DO environments
     browser = await puppeteer.launch({
       headless: "new",
-      executablePath: "/usr/bin/chromium-browser",
+      // executablePath: "/usr/bin/chromium-browser",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -44,18 +44,57 @@ app.get("/api-request", async (req, res) => {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     );
 
-    // Navigate to the target API URL
-    console.log(`Navigating to ${process.env.TARGET_API_URL}...`);
-    await page.goto("https://www.google.com", { waitUntil: "networkidle2" });
+    await page.setRequestInterception(true);
 
-    // Example: Extract data from the page
-    const data = await page.evaluate(() => {
-      // This function runs in the browser context
-      // Modify this to extract the data you need from the page
-      return {
-        title: document.title,
-        content: document.body.innerText.substring(0, 500), // First 500 chars of body text
+    // Handle request interception
+    page.on("request", async (request) => {
+      const headers = {
+        "Content-Type": "application/json",
+        referer:
+          "https://myroadsafety.rsa.ie/portal/booking/new/e5bbe47a-3f94-e911-a2be-0050568fd8e0/d2dc5f8c-2506-ea11-a2c3-0050568fd8e0",
+        Authorization: `Bearer ${process.env.RSA_TOKEN}`, // Make sure to add RSA_TOKEN to your .env file
       };
+
+      // If this is the specific API request we want to intercept
+      if (
+        request.url().includes("myroadsafety.rsa.ie/api/v1/Availability/All")
+      ) {
+        const response = await fetch(request.url(), {
+          headers: headers,
+          method: "GET",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          request.respond({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify(data),
+          });
+        } else {
+          request.respond({
+            status: response.status,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "Request failed" }),
+          });
+        }
+      } else {
+        // For all other requests, continue normally
+        request.continue();
+      }
+    });
+
+    // Navigate to the target URL
+    await page.goto(
+      "https://myroadsafety.rsa.ie/api/v1/Availability/All/7ebe5a36-871b-ef11-af89-005056b9b50c/0fed074d-c2d6-e811-a2c0-005056823b22",
+      {
+        waitUntil: "networkidle0",
+      }
+    );
+
+    // Get the response data
+    const data = await page.evaluate(() => {
+      return document.body.textContent;
     });
 
     await browser.close();
@@ -63,7 +102,7 @@ app.get("/api-request", async (req, res) => {
 
     res.json({
       success: true,
-      data,
+      data: JSON.parse(data),
     });
   } catch (error) {
     console.error("Error during API request:", error);
@@ -78,89 +117,7 @@ app.get("/api-request", async (req, res) => {
   }
 });
 
-// Custom API endpoint with parameters
-app.post("/custom-request", async (req, res) => {
-  const { url, selector } = req.body;
-
-  if (!url) {
-    return res.status(400).json({
-      success: false,
-      error: "URL is required",
-    });
-  }
-
-  let browser = null;
-
-  try {
-    browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--disable-gpu",
-      ],
-    });
-
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    );
-
-    await page.goto(url, { waitUntil: "networkidle2" });
-
-    let result;
-
-    if (selector) {
-      // Wait for the selector to be available
-      await page.waitForSelector(selector, { timeout: 5000 }).catch(() => {
-        console.log(`Selector "${selector}" not found, proceeding anyway`);
-      });
-
-      // Extract data based on the selector
-      result = await page.evaluate((sel) => {
-        const element = document.querySelector(sel);
-        return element ? element.innerText : "Element not found";
-      }, selector);
-    } else {
-      // Default behavior if no selector is provided
-      result = await page.evaluate(() => {
-        return {
-          title: document.title,
-          content: document.body.innerText.substring(0, 500),
-        };
-      });
-    }
-
-    await browser.close();
-    browser = null;
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error("Error during custom request:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
-});
-
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`- GET / - Check server status`);
-  console.log(
-    `- GET /api-request - Make request to ${process.env.TARGET_API_URL}`
-  );
-  console.log(
-    `- POST /custom-request - Make custom request with URL and optional selector`
-  );
 });
