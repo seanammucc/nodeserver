@@ -49,10 +49,18 @@ app.get("/api-request", async (req, res) => {
     // Handle request interception
     page.on("request", async (request) => {
       const headers = {
+        Accept: "application/json, text/plain, */*",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+        Authorization: `Bearer ${process.env.RSA_TOKEN}`,
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
         "Content-Type": "application/json",
+        Cookie:
+          "OptanonAlertBoxClosed=2025-03-01T15:56:32.156Z; token=" +
+          process.env.RSA_TOKEN,
         referer:
           "https://myroadsafety.rsa.ie/portal/booking/new/e5bbe47a-3f94-e911-a2be-0050568fd8e0/d2dc5f8c-2506-ea11-a2c3-0050568fd8e0",
-        Authorization: `Bearer ${process.env.RSA_TOKEN}`, // Make sure to add RSA_TOKEN to your .env file
       };
 
       // If this is the specific API request we want to intercept
